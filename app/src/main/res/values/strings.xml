@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">COVID-19</string>
+    <string name="map_key" translatable="false">AIzaSyD1vKFD_aa27LJAkQ3DlievHCtWdtqwcH8</string>
+    <string name="google_maps_key">AIzaSyD1vKFD_aa27LJAkQ3DlievHCtWdtqwcH8</string>
+</resources>
