@@ -1,22 +1,62 @@
 package com.seu.covid_19;
 
-import java.util.Date;
+import java.text.SimpleDateFormat;
 
 public class ReportModel {
+
     public String userID;
-    public Date time;
+    public long time;
     public double latitude;
     public double longitude;
     public boolean confirmed;
 
-    public ReportModel(String userID, double latitude,double longitude, Date time, boolean confirmed){
-        this.userID = userID;
-        this.time = time;
-        this.latitude=latitude;
+    private ReportModel(){}
+
+    public ReportModel(String userID,long time,double latitude,double longitude,boolean confirmed){
+        this.time=time;
+        this.confirmed=confirmed;
         this.longitude=longitude;
-        this.confirmed =confirmed;
+        this.latitude=latitude;
+        this.userID=userID;
     }
 
+    public String getUserID() {
+        return userID;
+    }
 
+    public void setUserID(String userID) {
+        this.userID = userID;
+    }
 
+    public long getTime() {
+        return time;
+    }
+
+    public void setTime(long time) {
+        this.time = time;
+    }
+
+    public double getLatitude() {
+        return latitude;
+    }
+
+    public void setLatitude(double latitude) {
+        this.latitude = latitude;
+    }
+
+    public double getLongitude() {
+        return longitude;
+    }
+
+    public void setLongitude(double longitude) {
+        this.longitude = longitude;
+    }
+
+    public boolean isConfirmed() {
+        return confirmed;
+    }
+
+    public void setConfirmed(boolean confirmed) {
+        this.confirmed = confirmed;
+    }
 }

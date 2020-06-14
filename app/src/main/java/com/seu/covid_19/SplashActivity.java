@@ -2,7 +2,6 @@ package com.seu.covid_19;
 
 import android.app.Activity;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 
 
@@ -26,7 +25,7 @@ public class SplashActivity extends Activity {
                         finish();
 
                     }else {
-                        Intent myIntent = new Intent(getApplicationContext(), MapActivity.class);
+                        Intent myIntent = new Intent(getApplicationContext(), SignupActivity.class);
                         startActivity(myIntent);
                         finish();
                     }

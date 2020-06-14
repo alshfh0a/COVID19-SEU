@@ -1,82 +1,82 @@
 package com.seu.covid_19;
 
 
-import android.content.Intent;
+import android.app.AlertDialog;
+import android.content.Context;
+import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.location.Location;
-import android.location.LocationListener;
-import android.location.LocationManager;
-import android.os.Build;
+import android.os.SystemClock;
+import android.renderscript.Sampler;
 import android.view.View;
+import android.widget.TextView;
 import android.widget.Toast;
 
+
 import androidx.annotation.NonNull;
-import androidx.annotation.RequiresApi;
+import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.FragmentActivity;
 
-import com.google.android.gms.maps.CameraUpdateFactory;
-import com.google.android.gms.maps.GoogleMap;
-import com.google.android.gms.maps.OnMapReadyCallback;
-import com.google.android.gms.maps.SupportMapFragment;
-import com.google.android.gms.maps.model.BitmapDescriptorFactory;
-import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.Marker;
-import com.google.android.gms.maps.model.MarkerOptions;
-import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.Query;
+import com.google.firebase.database.ServerValue;
 import com.google.firebase.database.ValueEventListener;
 
-import java.util.Calendar;
+import java.security.Timestamp;
+import java.text.SimpleDateFormat;
+import java.time.Instant;
 import java.util.Date;
-import java.util.Objects;
+
+import static java.lang.Integer.parseInt;
 
 
-public class MapActivity extends FragmentActivity implements
-        OnMapReadyCallback, View.OnClickListener, GoogleMap.OnMarkerClickListener {
+public class MapActivity extends FragmentActivity implements View.OnClickListener {
 
-/// below two methods for verification the permissions
-/// onRequestPermissionsResult  && verifyAllPermissions
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        /// Map resource
+        String mPermission = Manifest.permission.ACCESS_FINE_LOCATION;
+        private static final int REQUEST_CODE_PERMISSION = 2;
+        GPSTracker gps;
+        TextView textLocation;
 
-        if (requestCode == 100){
-            if (!verifyAllPermissions(grantResults)) {
-                Toast.makeText(getApplicationContext(),"No sufficient permissions",Toast.LENGTH_LONG).show();
-            }else{
-                getMyLocation();
-            }
-        }else {
-            super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        }
-    }
-    public boolean verifyAllPermissions(int[] grantResults) {
-
-        for (int result : grantResults) {
-            if (result != PackageManager.PERMISSION_GRANTED) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-
-        GoogleMap myMap;
-        LocationManager myLocationManager;
-        LocationListener myLocationListener;
-        LatLng myOrigin;
         double latitude;
         double longitude;
-        DatabaseReference reportType;
-        Marker marker;
-        DataSnapshot dataSnapshot;
-        String ID;
-        String confirmed = "Confirmed Case";
+
+
+        /// the FireBase reference
+        FirebaseDatabase DB;
+        DatabaseReference refUser;
+        DatabaseReference refReport;
+        Query query1;
+
+        /// user info
+        String GovernmentID,Phone;
+
+
+        AlertDialog alertDialog;
+        long timestamp = System.currentTimeMillis()/1000;
+
+
+
+        SimpleDateFormat tt = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+
+
+
+
+        int Risk ;
+        final double disBpo = 20;
+        final double fechedSeco = 1.2096*1000000000;
+        final int highAlarm = 3;
+        final int medAlarm = 2;
+        final int lowAlarm = 1;
+        final int noAlarm = 0;
+
+
 
 
         /// here (onCreate) inside the FireBase Location (path)
@@ -84,117 +84,177 @@ public class MapActivity extends FragmentActivity implements
         protected void onCreate(Bundle savedInstanceState) {
             super.onCreate(savedInstanceState);
             setContentView(R.layout.map_layout);
-            SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
-                    .findFragmentById(R.id.myMap);
-            mapFragment.getMapAsync(this);
+
+            try{
+                if(ActivityCompat.checkSelfPermission(this, mPermission)!= PackageManager.PERMISSION_GRANTED){
+                    ActivityCompat.requestPermissions(this, new String []{mPermission}, REQUEST_CODE_PERMISSION);
+                }
+
+            }catch (Exception e){
+                e.printStackTrace();
+            }
+
+            gps= new GPSTracker(MapActivity.this);
+            textLocation=(TextView)findViewById(R.id.textGetLocation);
+            if(gps.canGetLocation()){
+                latitude = gps.getLatitude();
+                longitude = gps.getLongitude();
+                textLocation.setText(latitude+ " "+ longitude);
+            }else{
+                gps.showSettingsAlert();
+            }
 
 
-            /// to get the user  GovernmentID
-            ///getID();
+            /// to get the user  info
+            SharedPreferences result = getSharedPreferences("LOGIN_FILE", Context.MODE_PRIVATE);
+            GovernmentID = result.getString("GOV_ID","err ID");
+            Phone = result.getString("PHONE", "err phone");
 
 
-            /// Fire base location
-            ChildEventListener mChildEventListener;
-            reportType = FirebaseDatabase.getInstance().getReference("COVID-19").child("UserLocationUpdate");
-            reportType.push().setValue(marker);
+            /// FireBase reference retriever
+            DB = FirebaseDatabase.getInstance();
+            refUser = DB.getReference("UserInfo");
+            refReport = DB.getReference("UserLocationUpdate");
+
+            query1 = refReport.orderByChild("confirmed").equalTo(true);
+
         }
 
 
 
-        /// here (onMapReady) the following:-
-        /// Get user location (only request)
+
         /// FireBase retriever
         /// main important (if) for confirmed cases
-        @Override
-        public void onMapReady(GoogleMap googleMap) {
-            myMap = googleMap;
-            getMyLocation();
-            updateUserlocation();
-            googleMap.setOnMarkerClickListener(this);
-            googleMap.setOnMarkerClickListener((GoogleMap.OnMarkerClickListener) this);
-            reportType.addListenerForSingleValueEvent(new ValueEventListener() {
-                @Override
-                public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-
-                    /// FireBase retriever
-                   /** for (DataSnapshot s : dataSnapshot.getChildren()){
-                        ReportModel report = s.getValue(ReportModel.class);
-                        LatLng location =new LatLng(report.latitude,report.longitude);
-                       /// int confirmed = new int(report.confirmed);
-
-                        if (report.confirmed){
-                            myMap.addMarker(new MarkerOptions().position(location).title(confirmed))
-                                    .setIcon(BitmapDescriptorFactory.
-                                                        defaultMarker(BitmapDescriptorFactory.HUE_RED));}
-                    }**/
-                }
-
-                @Override
-                public void onCancelled(@NonNull DatabaseError databaseError) {   }
-            });
-
-        }
 
 
+    @Override
+    protected void onStart() {
 
-        /// here (getMyLocation) to get the current location of the user with movements
-        public void getMyLocation(){
-            myLocationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
-            myLocationListener = new LocationListener() {
-                @Override
-                public void onLocationChanged(Location location) {
-                    myOrigin = new LatLng(location.getLatitude(), location.getLongitude());
-                    latitude = location.getLatitude();
-                    longitude = location.getLongitude();
-                    myMap.moveCamera(CameraUpdateFactory.newLatLngZoom(myOrigin,13));
-                }
+        /// FireBase retriever Reports
+        super.onStart();
+        refReport.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                if (dataSnapshot.exists())
+                {
 
-                @Override
-                public void onStatusChanged(String provider, int status, Bundle extras) { }
+                    for (DataSnapshot s : dataSnapshot.getChildren())
+                    {
+                        //ReportModel report = s.getValue(ReportModel.class);
+                        boolean fechedConfirmed = false;
+                        double fechedLatitude = 0;
+                        double fechedLongitude = 0;
+                        long fechedTimeStamp = 0L;
 
-                @Override
-                public void onProviderEnabled(String provider) { }
+                        if (s.getKey().equals("confirmed"))
+                        {fechedConfirmed = Boolean.valueOf(s.toString());}
+                        //if (s.getKey().equals("time"))
+                        //{fechedTimeStamp = Long.valueOf(s.toString());}
+                        //if (s.getKey().equals("latitude"))
+                        //{fechedLatitude = Double.valueOf(s.toString());}
+                       // if (s.getKey().equals("longitude"))
+                       // {fechedLongitude = Double.valueOf(s.toString());}
 
-                @Override
-                public void onProviderDisabled(String provider) {}
-            };
+                        setDistance(fechedLatitude,fechedLongitude);
 
-            int currentApiVersion = Build.VERSION.SDK_INT;
-            if (currentApiVersion >= Build.VERSION_CODES.M) {
+                        if (fechedConfirmed)
+                        {Risk++;
+                            if ((timestamp - fechedTimeStamp) <= (fechedSeco/1000) )
+                            {
+                                if (getDistance()> disBpo)
+                                {
 
-                if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_DENIED) {
-                    myMap.setMyLocationEnabled(true);
-
-                    myLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,10000,0,myLocationListener);
-
-                }else{
-                    requestPermissions(new String[]{
-                            Manifest.permission.ACCESS_FINE_LOCATION
-                    },100);
+                                }
+                            }
+                        }
+                    }
                 }
             }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {            }
+        });
+        if (Risk >= highAlarm) {
+            Toast.makeText(this, "you are in high risk", Toast.LENGTH_LONG).show();
+        }
+        if (Risk >= medAlarm) {
+            Toast.makeText(this, "you are in Med risk", Toast.LENGTH_LONG).show();
+        }
+        if (Risk >= lowAlarm) {
+            Toast.makeText(this, "you are in Low risk", Toast.LENGTH_LONG).show();
+        }
+        if (Risk <= noAlarm) {
+            Toast.makeText(this, "you are in NO risk", Toast.LENGTH_LONG).show();
+        }
+
+    }
+
+
+
+
+        public void reportButton(View view){
+            AlertDialog.Builder builder = new AlertDialog.Builder(MapActivity.this);
+            builder.setTitle("Ara you confirmed case");
+
+            builder.setPositiveButton("yes", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialogInterface, int i) {
+                    UserModel user = new UserModel();
+                    user.UserGvID = GovernmentID;
+                    user.UserPhone = Phone;
+                    user.Risk = true;
+                    updateUserInfo(user);
+                    ReportModel Userlocation= new ReportModel(GovernmentID,timestamp,latitude,longitude,true);
+                    updateUserlocation(Userlocation);
+					
+                }
+            });
+            builder.setNegativeButton("no", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialogInterface, int i) {
+                    ReportModel Userlocation= new ReportModel(GovernmentID,timestamp,latitude,longitude,false);
+                    updateUserlocation(Userlocation);
+                }
+
+            });
+            alertDialog = builder.create();
+            alertDialog.show();
+
+        }
+
+         /// to upload the report file to Firebase
+        public void updateUserlocation(ReportModel Userlocation){
+            refReport.setValue(Userlocation);
         }
 
 
-        public void updateUserlocation(){
-            Date currentTime = Calendar.getInstance().getTime();
-            boolean confirmed = false;
-            ReportModel Userlocation = new ReportModel(ID, latitude, longitude, currentTime, confirmed);
-            FirebaseDatabase.getInstance().getReference("COVID-19").child("UserLocationUpdate").push()
-                    .setValue(Userlocation);
+        /// to get the distance between two points (the user and the retrieved one)
+        double Distance ;
+        public void setDistance(Double fechedLatitude, Double fechedLongitude){
+             Location userLocation = new Location("userLocation");
+             userLocation.setLatitude(latitude);
+             userLocation.setLongitude(longitude);
+             Location fechedLocation = new Location("fechedLocation");
+             fechedLocation.setLatitude(fechedLatitude);
+             fechedLocation.setLongitude(fechedLongitude);
+
+             Distance = userLocation.distanceTo(fechedLocation);
         }
 
-        public void getID(){
-            Intent I = getIntent();
-            ID = Objects.requireNonNull(I.getExtras()).getString("ID");
-        }
+        public double getDistance() { return Distance; }
+
+
+
+
+        public void updateUserInfo(UserModel userModel)
+        { refUser.child(GovernmentID).setValue(userModel);}
+
+
+
+
 
         @Override
         public void onClick(View view) {    }
 
-        @Override
-        public boolean onMarkerClick(Marker marker) {
-            return false;
-        }
 
 }
