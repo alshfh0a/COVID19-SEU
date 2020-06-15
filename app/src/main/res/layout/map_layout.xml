@@ -9,8 +9,18 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
-        android:layout_marginBottom="404dp"
+        android:layout_marginBottom="321dp"
         android:hint="FetchingLocation"
+        android:textAlignment="center"
+        android:textSize="24sp" />
+
+    <TextView
+        android:id="@+id/status"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_marginBottom="447dp"
+        android:hint="User status"
         android:textAlignment="center"
         android:textSize="24sp" />
 

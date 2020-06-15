@@ -16,21 +16,34 @@ public class SplashActivity extends Activity {
 
             @Override
             public void run() {
-                try {
-                    sleep(2000);
-                    Prefrences preference = new Prefrences(getApplicationContext()) ;
-                    if (!preference.readLoginStatue()) {
-                        Intent myIntent = new Intent(getApplicationContext(), SignupActivity.class);
-                        startActivity(myIntent);
-                        finish();
+                try
+                {
+                        /// just a view to make our app locks better
+                        sleep(2000);
 
-                    }else {
-                        Intent myIntent = new Intent(getApplicationContext(), SignupActivity.class);
-                        startActivity(myIntent);
-                        finish();
-                    }
+                        /// calling preferences
+                        Prefrences preference = new Prefrences(getApplicationContext()) ;
 
-                } catch (InterruptedException e) {
+                        /// if the preferences is empty, as code if the (boolean) loginStatue if false
+                        if (!preference.readLoginStatue())
+                        {
+                            ///start Singup activity
+                            Intent myIntent = new Intent(getApplicationContext(), SignupActivity.class);
+                            startActivity(myIntent);
+                            finish();
+                        }
+
+                        /// if the preferences in NOT null, as code if the (boolean) loginStatue if true
+                        else
+                        {
+                             ///start Map activity
+                             Intent myIntent = new Intent(getApplicationContext(), MapActivity.class);
+                             startActivity(myIntent);
+                             finish();
+                        }
+
+                }
+                catch (InterruptedException e) {
                     e.printStackTrace();
                 }
             }

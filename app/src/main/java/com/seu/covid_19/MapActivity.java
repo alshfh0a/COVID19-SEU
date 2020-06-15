@@ -9,12 +9,8 @@ import android.os.Bundle;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.location.Location;
-import android.os.SystemClock;
-import android.renderscript.Sampler;
 import android.view.View;
 import android.widget.TextView;
-import android.widget.Toast;
-
 
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
@@ -24,16 +20,9 @@ import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.database.Query;
-import com.google.firebase.database.ServerValue;
+
+
 import com.google.firebase.database.ValueEventListener;
-
-import java.security.Timestamp;
-import java.text.SimpleDateFormat;
-import java.time.Instant;
-import java.util.Date;
-
-import static java.lang.Integer.parseInt;
 
 
 public class MapActivity extends FragmentActivity implements View.OnClickListener {
@@ -42,65 +31,65 @@ public class MapActivity extends FragmentActivity implements View.OnClickListene
         String mPermission = Manifest.permission.ACCESS_FINE_LOCATION;
         private static final int REQUEST_CODE_PERMISSION = 2;
         GPSTracker gps;
-        TextView textLocation;
 
+        /// layuot
+        TextView textLocation,status;
+        AlertDialog alertDialog;
+
+        /// used in layour and Firebase, almost everwhere :D
         double latitude;
         double longitude;
-
+        long timestamp = System.currentTimeMillis()/1000;
 
         /// the FireBase reference
         FirebaseDatabase DB;
         DatabaseReference refUser;
         DatabaseReference refReport;
-        Query query1;
 
         /// user info
         String GovernmentID,Phone;
 
-
-        AlertDialog alertDialog;
-        long timestamp = System.currentTimeMillis()/1000;
-
-
-
-        SimpleDateFormat tt = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-
-
-
-
-        int Risk ;
-        final double disBpo = 20;
-        final double fechedSeco = 1.2096*1000000000;
-        final int highAlarm = 3;
-        final int medAlarm = 2;
-        final int lowAlarm = 1;
-        final int noAlarm = 0;
-
-
-
+        /// here is the parameters
+        final double disBpo = 20; // in meters
+        final long fechedSeco = 1209600; // in Seconds = 14 days
+        final int highAlarm = 3; // how many case to reach the high alarms
+        final int medAlarm = 2;  // how many case to reach the med  alarms
+        final int lowAlarm = 1;  // how many case to reach the low  alarms
+        final int noAlarm = 0;   // how many case to reach the  no  alarms
 
         /// here (onCreate) inside the FireBase Location (path)
         @Override
-        protected void onCreate(Bundle savedInstanceState) {
+        protected void onCreate(Bundle savedInstanceState)
+        {
             super.onCreate(savedInstanceState);
             setContentView(R.layout.map_layout);
+            textLocation = (TextView)findViewById(R.id.textGetLocation);
+            status = (TextView)findViewById(R.id.status);
 
-            try{
-                if(ActivityCompat.checkSelfPermission(this, mPermission)!= PackageManager.PERMISSION_GRANTED){
+            /// get the location
+            try
+            {
+                if(ActivityCompat.checkSelfPermission(this, mPermission)!= PackageManager.PERMISSION_GRANTED)
+                {
                     ActivityCompat.requestPermissions(this, new String []{mPermission}, REQUEST_CODE_PERMISSION);
                 }
 
-            }catch (Exception e){
+            }
+            catch (Exception e)
+            {
                 e.printStackTrace();
             }
 
             gps= new GPSTracker(MapActivity.this);
-            textLocation=(TextView)findViewById(R.id.textGetLocation);
-            if(gps.canGetLocation()){
+
+            if(gps.canGetLocation())
+            {
                 latitude = gps.getLatitude();
                 longitude = gps.getLongitude();
                 textLocation.setText(latitude+ " "+ longitude);
-            }else{
+            }
+            else
+            {
                 gps.showSettingsAlert();
             }
 
@@ -112,87 +101,68 @@ public class MapActivity extends FragmentActivity implements View.OnClickListene
 
 
             /// FireBase reference retriever
+            /// FireBase retriever reports
+            /// main important (if) statement
             DB = FirebaseDatabase.getInstance();
             refUser = DB.getReference("UserInfo");
-            refReport = DB.getReference("UserLocationUpdate");
+            refReport = DB.getReference("UserLocationUpdate").push();
 
-            query1 = refReport.orderByChild("confirmed").equalTo(true);
+            DatabaseReference reportType;
+            reportType = FirebaseDatabase.getInstance().getReference("UserLocationUpdate");
+            reportType.push();
+            reportType.addListenerForSingleValueEvent(new ValueEventListener() {
+                @Override
+                public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                    if (dataSnapshot.exists())
+                    {  int Risk =0;
+                            for (DataSnapshot s : dataSnapshot.getChildren()){
+                                ReportModel reportModel = s.getValue(ReportModel.class);
+                                boolean fechedConfirmed = reportModel.confirmed;
+                                double fechedLatitude = reportModel.latitude;
+                                double fechedLongitude = reportModel.longitude;
+                                long fechedTimeStamp = reportModel.time;
+                                setDistance(fechedLatitude,fechedLongitude);
 
-        }
-
-
-
-
-        /// FireBase retriever
-        /// main important (if) for confirmed cases
-
-
-    @Override
-    protected void onStart() {
-
-        /// FireBase retriever Reports
-        super.onStart();
-        refReport.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                if (dataSnapshot.exists())
-                {
-
-                    for (DataSnapshot s : dataSnapshot.getChildren())
-                    {
-                        //ReportModel report = s.getValue(ReportModel.class);
-                        boolean fechedConfirmed = false;
-                        double fechedLatitude = 0;
-                        double fechedLongitude = 0;
-                        long fechedTimeStamp = 0L;
-
-                        if (s.getKey().equals("confirmed"))
-                        {fechedConfirmed = Boolean.valueOf(s.toString());}
-                        //if (s.getKey().equals("time"))
-                        //{fechedTimeStamp = Long.valueOf(s.toString());}
-                        //if (s.getKey().equals("latitude"))
-                        //{fechedLatitude = Double.valueOf(s.toString());}
-                       // if (s.getKey().equals("longitude"))
-                       // {fechedLongitude = Double.valueOf(s.toString());}
-
-                        setDistance(fechedLatitude,fechedLongitude);
-
-                        if (fechedConfirmed)
-                        {Risk++;
-                            if ((timestamp - fechedTimeStamp) <= (fechedSeco/1000) )
-                            {
-                                if (getDistance()> disBpo)
+                                if (fechedConfirmed)
                                 {
-
+                                    if ((timestamp - fechedTimeStamp) <= (fechedSeco) )
+                                    {
+                                        if (getDistance()< disBpo)
+                                        {
+                                            Risk++;
+                                        }
+                                    }
                                 }
                             }
+                        if (Risk == noAlarm) {
+                            status.setText("you are in No risk");
                         }
+                        if (Risk == lowAlarm) {
+                            status.setText("you are in Low risk");
+                        }
+                        if (Risk == medAlarm) {
+                            status.setText("you are in Med risk");
+                        }
+                        if (Risk >= highAlarm) {
+                            status.setText("you are in high risk");
+                        }
+
+                    }
+                    if(!dataSnapshot.exists()) {
+                        status.setText("you are the first user or there is no data to retrieve");
                     }
                 }
-            }
 
-            @Override
-            public void onCancelled(@NonNull DatabaseError databaseError) {            }
-        });
-        if (Risk >= highAlarm) {
-            Toast.makeText(this, "you are in high risk", Toast.LENGTH_LONG).show();
-        }
-        if (Risk >= medAlarm) {
-            Toast.makeText(this, "you are in Med risk", Toast.LENGTH_LONG).show();
-        }
-        if (Risk >= lowAlarm) {
-            Toast.makeText(this, "you are in Low risk", Toast.LENGTH_LONG).show();
-        }
-        if (Risk <= noAlarm) {
-            Toast.makeText(this, "you are in NO risk", Toast.LENGTH_LONG).show();
+                @Override
+                public void onCancelled(@NonNull DatabaseError databaseError) {            }
+            });
+
+
         }
 
-    }
-
-
-
-
-        public void reportButton(View view){
+        /// from here the user can upload the location the the user status
+        public void reportButton(View view)
+        {
             AlertDialog.Builder builder = new AlertDialog.Builder(MapActivity.this);
             builder.setTitle("Ara you confirmed case");
 
@@ -223,14 +193,15 @@ public class MapActivity extends FragmentActivity implements View.OnClickListene
         }
 
          /// to upload the report file to Firebase
-        public void updateUserlocation(ReportModel Userlocation){
+        public void updateUserlocation(ReportModel Userlocation)
+        {
             refReport.setValue(Userlocation);
         }
 
-
         /// to get the distance between two points (the user and the retrieved one)
         double Distance ;
-        public void setDistance(Double fechedLatitude, Double fechedLongitude){
+        public void setDistance(Double fechedLatitude, Double fechedLongitude)
+        {
              Location userLocation = new Location("userLocation");
              userLocation.setLatitude(latitude);
              userLocation.setLongitude(longitude);
@@ -240,21 +211,13 @@ public class MapActivity extends FragmentActivity implements View.OnClickListene
 
              Distance = userLocation.distanceTo(fechedLocation);
         }
-
         public double getDistance() { return Distance; }
 
-
-
-
+        /// to updata the user status
         public void updateUserInfo(UserModel userModel)
         { refUser.child(GovernmentID).setValue(userModel);}
 
-
-
-
-
         @Override
         public void onClick(View view) {    }
-
 
 }
