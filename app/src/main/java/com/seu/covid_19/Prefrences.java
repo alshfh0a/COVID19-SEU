@@ -4,15 +4,17 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
 
-public class Prefrences {
+import java.util.ArrayList;
 
+public class Prefrences
+{
     SharedPreferences sharedPreferences;
     Context context;
 
-    public Prefrences(Context context){
+    public Prefrences(Context context)
+    {
         this.context = context;
         sharedPreferences = context.getSharedPreferences("LOGIN_FILE",Context.MODE_PRIVATE);
-
     }
 
     public void writeLoginStatue(boolean statue)
@@ -36,12 +38,6 @@ public class Prefrences {
         editor.commit();
     }
 
-    public String readGovID()
-    {
-        String GovID;
-        GovID = sharedPreferences.getString("GOV_ID",null);
-        return GovID;
-    }
 
     public void SavePhone(String Phone)
     {
@@ -49,14 +45,5 @@ public class Prefrences {
         editor.putString("PHONE",Phone);
         editor.commit();
     }
-
-    public String readPhone()
-    {
-        String Phone;
-        Phone = sharedPreferences.getString("PHONE",null);
-        return Phone;
-    }
-
-
 
 }

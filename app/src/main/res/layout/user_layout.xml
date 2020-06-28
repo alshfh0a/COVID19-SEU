@@ -32,7 +32,7 @@
 
 
         <Button
-            android:id="@+id/report"
+            android:id="@+id/Status"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginStart="20dp"
@@ -43,8 +43,8 @@
             android:layout_marginBottom="20dp"
             android:layout_weight="1"
             android:background="@android:color/holo_blue_dark"
-            android:onClick="reportButton"
-            android:text="Report your location"
+            android:onClick="getStatus"
+            android:text="get status"
             android:textAllCaps="false"
             android:textColor="@android:color/white" />
 

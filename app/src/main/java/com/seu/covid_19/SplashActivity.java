@@ -28,7 +28,7 @@ public class SplashActivity extends Activity {
                         if (!preference.readLoginStatue())
                         {
                             ///start Singup activity
-                            Intent myIntent = new Intent(getApplicationContext(), SignupActivity.class);
+                            Intent myIntent = new Intent(getApplicationContext(), userSignupActivity.class);
                             startActivity(myIntent);
                             finish();
                         }
@@ -37,7 +37,7 @@ public class SplashActivity extends Activity {
                         else
                         {
                              ///start Map activity
-                             Intent myIntent = new Intent(getApplicationContext(), MapActivity.class);
+                             Intent myIntent = new Intent(getApplicationContext(), userActivity.class);
                              startActivity(myIntent);
                              finish();
                         }

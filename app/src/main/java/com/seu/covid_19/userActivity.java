@@ -11,6 +11,8 @@ import android.os.Build;
 import android.os.Bundle;
 import android.Manifest;
 import android.content.pm.PackageManager;
+import android.view.View;
+import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -26,7 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 
-public class test extends Activity  {
+public class userActivity extends Activity  {
     /// Map resource
     LocationManager locationManager;
     LocationListener locationListener;
@@ -38,7 +40,7 @@ public class test extends Activity  {
 
 
     /// layout
-    TextView text1, text2, text3, text4;
+    TextView viewLocation, status;
 
     /// used in layout and FireBase, almost everywhere :D
     double latitude;
@@ -47,6 +49,9 @@ public class test extends Activity  {
     /// the FireBase reference
     FirebaseDatabase DB;
     DatabaseReference refLocation,refUserUpdateLocation;
+    List<ReportModel> userList = new ArrayList<ReportModel>();
+    List<ReportModel> otherUsers = new ArrayList<ReportModel>();
+    int cashConfirm ;
 
 
     /// user info
@@ -108,14 +113,13 @@ public class test extends Activity  {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.test);
-        text1 = (TextView) findViewById(R.id.text1);
-        text2 = (TextView) findViewById(R.id.text2);
-        text3 = (TextView) findViewById(R.id.text3);
-        text4 = (TextView) findViewById(R.id.text4);
+        setContentView(R.layout.user_layout);
+        viewLocation = (TextView) findViewById(R.id.textGetLocation);
+        status = (TextView) findViewById(R.id.status);
 
         /// get the location
         getMyLocation();
+
 
 
         /// to get the user  info
@@ -131,47 +135,58 @@ public class test extends Activity  {
         refLocation = DB.getReference("COVID-19");
         refUserUpdateLocation = refLocation.child(GovernmentID).child("locations");
 
-
-        if(checkgranted(true))
-        {
-            int cashed = fechAndCheck();
-            text2.setText(cashed+"");
-
-            if (cashed == noAlarm) {
-                text1.setText("you are in No risk");
-            }
-            if (cashed == lowAlarm) {
-                text1.setText("you are in Low risk");
-            }
-            if (cashed == medAlarm) {
-                text1.setText("you are in Med risk");
-            }
-            if (cashed >= highAlarm) {
-                text1.setText("you are in high risk");
+        /// to get the user location history
+        DatabaseReference userLocations = refLocation.child(GovernmentID).child("locations");
+        userLocations.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                if (dataSnapshot.exists())
+                {
+                    for (DataSnapshot s : dataSnapshot.getChildren())
+                    {
+                        ReportModel user =s.getValue(ReportModel.class);
+                        userList.add(user);
+                    }
+                }
             }
 
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {            }
 
-        }
+        });
 
 
+        /// get the other location history
+        refLocation.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                if (dataSnapshot.exists())
+                {
+                    for (DataSnapshot s : dataSnapshot.getChildren())
+                    {
+                        UserModel fechedUser = s.getValue(UserModel.class);
+                        boolean userStatus = fechedUser.Risk;
+                        String GovID = fechedUser.UserGvID;
+                        DataSnapshot locationsDataSnapshot =s.child("locations");
+                        if (userStatus && !GovID.equals(GovernmentID)
+                        )
+                        {
+                            for (DataSnapshot locationsSnapshot :locationsDataSnapshot.getChildren())
+                            {
+                                ReportModel fechecLocation =locationsSnapshot.getValue(ReportModel.class);
+                                otherUsers.add(fechecLocation);
+
+                            }
+                        }
+                    }
+                }
+            }
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {            }
+
+        });
 
     }
-
-    /// to get the distance between two points (the user and the retrieved one)
-    double Distance ;
-    public double distance(Double userLatitude, Double userLongitude,Double otherLatitude, Double otherLongitude)
-    {
-        Location userLocation = new Location("userLocation");
-        userLocation.setLatitude(userLatitude);
-        userLocation.setLongitude(userLongitude);
-        Location fechedLocation = new Location("fechedLocation");
-        fechedLocation.setLatitude(otherLatitude);
-        fechedLocation.setLongitude(otherLongitude);
-
-        Distance = userLocation.distanceTo(fechedLocation);
-        return Distance;
-    }
-
 
 
     public void getMyLocation()
@@ -184,6 +199,7 @@ public class test extends Activity  {
                 currentLocation = location;
                 latitude = location.getLatitude();
                 longitude = location.getLongitude();
+                viewLocation.setText(latitude+ "\n"+longitude);
                 ReportModel updateLocation = new ReportModel(TimeStamp,latitude,longitude);
                 String StringTimeStamp = TimeStamp +"";
                 refUserUpdateLocation.child(StringTimeStamp).setValue(updateLocation);
@@ -205,7 +221,7 @@ public class test extends Activity  {
 
             if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_DENIED)
             {
-                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,MIN_TIME_BW_UPDATES,MIN_DISTANCE_FOR_UPDATES,locationListener);
+                 locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,MIN_TIME_BW_UPDATES,MIN_DISTANCE_FOR_UPDATES,locationListener);
             }
             else
             {
@@ -215,85 +231,67 @@ public class test extends Activity  {
         }
     }
 
-    int cashConfirm;
 
-    ArrayList<ReportModel> userList = new ArrayList<ReportModel>();
-    ArrayList<ReportModel> otherUsers = new ArrayList<ReportModel>();
     public int fechAndCheck()
     {
-
-            /// to get the user location history
-            DatabaseReference userLocations = refLocation.child(GovernmentID).child("locations");
-            userLocations.addListenerForSingleValueEvent(new ValueEventListener() {
-                @Override
-                public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                    if (dataSnapshot.exists())
-                    {
-                        for (DataSnapshot s : dataSnapshot.getChildren())
-                        {
-                            ReportModel user =s.getValue(ReportModel.class);
-                            userList.add(user);
-                        }
-                    }
-                }
-                @Override
-                public void onCancelled(@NonNull DatabaseError databaseError) {            }
-            });
-
-            /// get the other location history
-            refLocation.addListenerForSingleValueEvent(new ValueEventListener() {
-                @Override
-                public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                    if (dataSnapshot.exists())
-                    {
-                        for (DataSnapshot s : dataSnapshot.getChildren())
-                        {
-                            UserModel fechedUser = s.getValue(UserModel.class);
-                            String GovID = fechedUser.UserGvID;
-                            boolean userStatus = fechedUser.Risk;
-                            DataSnapshot locationsDataSnapshot =s.child("locations");
-                            if (userStatus && !GovID.equals(GovernmentID))
-                            {
-                                for (DataSnapshot locationsSnapshot :locationsDataSnapshot.getChildren())
-                                {
-                                    ReportModel fechecLocation =locationsSnapshot.getValue(ReportModel.class);
-                                    otherUsers.add(fechecLocation);
-
-                                }
-                            }
-                        }
-                    }
-                }
-
-                @Override
-                public void onCancelled(@NonNull DatabaseError databaseError) {            }
-
-            });
-
-            /// compare between info of the user and confirmed users
-            if (userList != null)
+        /// compare between info of the user and confirmed users
+        if (userList != null)
+        {
+            for ( int i =0;i<userList.size();i++)
             {
-                for ( int i =0;i<userList.size();i++)
+                ReportModel userTemp = userList.get(i);
+                if (otherUsers!= null)
                 {
-                    ReportModel userTemp = userList.get(i);
-                    text3.setText(userTemp.time+"");
-                    if (otherUsers!= null)
+                    for (int x = 0; x<otherUsers.size();x++)
                     {
-                        for (int x = 0; x<otherUsers.size();x++)
+                        ReportModel othersTemp = otherUsers.get(x);
+                        if (userTemp.time - othersTemp.time <fechedSeco)
                         {
-                            ReportModel othersTemp = otherUsers.get(x);
-                            text4.setText(othersTemp.time+"");
-                            if (userTemp.time - othersTemp.time <fechedSeco)
-                            {
-                                if (distance(userTemp.latitude, userTemp.longitude, othersTemp.latitude, othersTemp.longitude)<disBpo) { cashConfirm++; }
-                            }
+                            if (distance(userTemp.latitude, userTemp.longitude, othersTemp.latitude, othersTemp.longitude)<disBpo) { cashConfirm++; }
                         }
                     }
                 }
             }
-
+        }
         return cashConfirm;
     }
 
 
+    /// to get the distance between two points (the user and the retrieved one)
+    double Distance ;
+    public double distance(Double userLatitude, Double userLongitude,Double otherLatitude, Double otherLongitude)
+    {
+        Location userLocation = new Location("userLocation");
+        userLocation.setLatitude(userLatitude);
+        userLocation.setLongitude(userLongitude);
+        Location fechedLocation = new Location("fechedLocation");
+        fechedLocation.setLatitude(otherLatitude);
+        fechedLocation.setLongitude(otherLongitude);
+
+        Distance = userLocation.distanceTo(fechedLocation);
+        return Distance;
+    }
+
+
+    public void getStatus(View view)
+    {
+        fechAndCheck();
+        if(checkgranted(true))
+        {
+            int cashed = cashConfirm;
+            if (cashed == noAlarm) {
+                status.setText("you are in No risk");
+            }
+            if (cashed == lowAlarm) {
+                status.setText("you are in Low risk");
+            }
+            if (cashed == medAlarm) {
+                status.setText("you are in Med risk");
+            }
+            if (cashed >= highAlarm) {
+                status.setText("you are in high risk");
+            }
+
+        }
+    }
 }
