@@ -46,4 +46,19 @@ public class Prefrences
         editor.commit();
     }
 
+    public String getGovID()
+    {
+        String GovID;
+        GovID = sharedPreferences.getString("GOV_ID","err_ID");
+        return GovID;
+    }
+
+    public String getPhone()
+    {
+        String Phone;
+        Phone = sharedPreferences.getString("PHONE","err_Phone");
+        return Phone;
+    }
+
+
 }

@@ -6,8 +6,7 @@ public class  UserModel{
     public String UserGvID,UserPhone;
     public boolean Risk;
 
-    public UserModel() {
-        }
+    public UserModel() { }
 
     public UserModel(String UserGvID, String UserPhone,boolean Risk)
     {

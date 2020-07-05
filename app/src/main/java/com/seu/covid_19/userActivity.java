@@ -12,7 +12,6 @@ import android.os.Bundle;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.view.View;
-import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -32,23 +31,22 @@ public class userActivity extends Activity  {
     /// Map resource
     LocationManager locationManager;
     LocationListener locationListener;
-    Location currentLocation;
+    Location previousLocation;
 
     /// parameters for location
     private static final long MIN_DISTANCE_FOR_UPDATES = 1; // meters (here one meter)
-    private static final long MIN_TIME_BW_UPDATES = 1000; // milliseconds (here one second)
+    private static final long MIN_TIME_BW_UPDATES = 60000; // milliseconds (here one minute)
 
 
     /// layout
     TextView viewLocation, status;
 
     /// used in layout and FireBase, almost everywhere :D
-    double latitude;
-    double longitude;
+    double latitude, longitude;
 
     /// the FireBase reference
     FirebaseDatabase DB;
-    DatabaseReference refLocation,refUserUpdateLocation;
+    DatabaseReference refLocation,refUserUpdateLocation,userLocations;
     List<ReportModel> userList = new ArrayList<ReportModel>();
     List<ReportModel> otherUsers = new ArrayList<ReportModel>();
     int cashConfirm ;
@@ -58,17 +56,25 @@ public class userActivity extends Activity  {
     String GovernmentID, Phone;
 
     /// here is the parameters
-    final double disBpo = 20; // in meters
-    final long fechedSeco = 1209600; // in Seconds = 14 days
+    final double distanceTOothers = 20; // Maximum distance to others in meters
+    final long timeTOreport = 1209600;  // Maximum time to fetch locations in Seconds = 14 days
+    final long timeINlocation = 900;    // Maximum time in the same location in Seconds;
     final int highAlarm = 3; // how many case to reach the high alarms
     final int medAlarm = 2;  // how many case to reach the med  alarms
     final int lowAlarm = 1;  // how many case to reach the low  alarms
     final int noAlarm = 0;   // how many case to reach the  no  alarms
 
+    /// below parameters for update Location if the user walking(80 meters/ one minute{MIN_TIME_BW_UPDATES})
+    final int MinDistance = 1; // Minimum the distance to update the data
+    final int MaxDistance = 80;// Maximum the distance to update the data
+
 
 
     /// methods for verify (checkgranted) & (onRequestPermissionsResult) & (verifyAllPermissions)
-    public boolean checkgranted(boolean granted) { return granted; }
+    public boolean checkgranted(boolean granted)
+    {
+        return granted;
+    }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults)
@@ -100,11 +106,8 @@ public class userActivity extends Activity  {
 
 
     //////////////////////////////////////////////////////////////////////////////////////
-    /// ########        ######        ########       ##########
-    /// ###            ##    ##       ##    ##       ##  ##  ##
-
-
-
+    ///                          FROM HERE WE START THE APP                            ///
+    //////////////////////////////////////////////////////////////////////////////////////
 
 
 
@@ -121,61 +124,68 @@ public class userActivity extends Activity  {
         getMyLocation();
 
 
-
         /// to get the user  info
         SharedPreferences result = getSharedPreferences("LOGIN_FILE", Context.MODE_PRIVATE);
         GovernmentID = result.getString("GOV_ID", "err ID");
         Phone = result.getString("PHONE", "err phone");
 
 
-        /// FireBase reference retriever
-        /// FireBase retriever reports
-        /// main important (if) statement
+        //////////////////////////////////////////////////////////////////////////////////////////
+        ///////                     from here FireBase configuration                       ///////
+        //////////////////////////////////////////////////////////////////////////////////////////
+
+
+        /* FireBase reference retriever**/
         DB = FirebaseDatabase.getInstance();
         refLocation = DB.getReference("COVID-19");
         refUserUpdateLocation = refLocation.child(GovernmentID).child("locations");
+        userLocations = refLocation.child(GovernmentID).child("locations");
 
         /// to get the user location history
-        DatabaseReference userLocations = refLocation.child(GovernmentID).child("locations");
-        userLocations.addListenerForSingleValueEvent(new ValueEventListener() {
+        userLocations.addListenerForSingleValueEvent(new ValueEventListener()
+        {
             @Override
-            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot)
+            {
                 if (dataSnapshot.exists())
                 {
                     for (DataSnapshot s : dataSnapshot.getChildren())
                     {
+                        /// we add each Snap data of the current user to [userList]
                         ReportModel user =s.getValue(ReportModel.class);
                         userList.add(user);
                     }
                 }
             }
-
             @Override
             public void onCancelled(@NonNull DatabaseError databaseError) {            }
-
         });
 
-
         /// get the other location history
-        refLocation.addListenerForSingleValueEvent(new ValueEventListener() {
+        refLocation.addListenerForSingleValueEvent(new ValueEventListener()
+        {
             @Override
-            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot)
+            {
                 if (dataSnapshot.exists())
                 {
                     for (DataSnapshot s : dataSnapshot.getChildren())
                     {
-                        UserModel fechedUser = s.getValue(UserModel.class);
-                        boolean userStatus = fechedUser.Risk;
-                        String GovID = fechedUser.UserGvID;
+                        /// here we create a temporary [user] to execute some Ifs
+                        UserModel fetchedUser = s.getValue(UserModel.class);
+                        boolean userStatus = fetchedUser.Risk;
+                        String GovID = fetchedUser.UserGvID;
                         DataSnapshot locationsDataSnapshot =s.child("locations");
-                        if (userStatus && !GovID.equals(GovernmentID)
-                        )
+
+                        /// Two important Ifs
+                        // (one: if the user status is Confirmed) && (two: if the user NOT the current user)
+                        if (userStatus && !GovID.equals(GovernmentID))
                         {
                             for (DataSnapshot locationsSnapshot :locationsDataSnapshot.getChildren())
                             {
-                                ReportModel fechecLocation =locationsSnapshot.getValue(ReportModel.class);
-                                otherUsers.add(fechecLocation);
-
+                                /// we add each Snap data of the other users to [otherUsers] list
+                                ReportModel fetchedLocation =locationsSnapshot.getValue(ReportModel.class);
+                                otherUsers.add(fetchedLocation);
                             }
                         }
                     }
@@ -183,7 +193,6 @@ public class userActivity extends Activity  {
             }
             @Override
             public void onCancelled(@NonNull DatabaseError databaseError) {            }
-
         });
 
     }
@@ -194,16 +203,15 @@ public class userActivity extends Activity  {
         locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
         locationListener = new LocationListener() {
             @Override
-            public void onLocationChanged(Location location) {
-                long TimeStamp = System.currentTimeMillis()/1000 ;
-                currentLocation = location;
+            public void onLocationChanged(Location location)
+            {
+                /// use to view
                 latitude = location.getLatitude();
                 longitude = location.getLongitude();
                 viewLocation.setText(latitude+ "\n"+longitude);
-                ReportModel updateLocation = new ReportModel(TimeStamp,latitude,longitude);
-                String StringTimeStamp = TimeStamp +"";
-                refUserUpdateLocation.child(StringTimeStamp).setValue(updateLocation);
 
+                /// use in compare location
+                maxUpdate(location);
             }
 
             @Override
@@ -231,23 +239,44 @@ public class userActivity extends Activity  {
         }
     }
 
-
-    public int fechAndCheck()
+    /// compare between info of the user and confirmed users
+    public int fetchAndCheck()
     {
-        /// compare between info of the user and confirmed users
-        if (userList != null)
+        long TimeStamp = System.currentTimeMillis()/1000 ;
+        /// to check if the user list has value
+        if (userList.size() > 0)
         {
-            for ( int i =0;i<userList.size();i++)
+            /// to create temporary user Location (from the current user fetched data) to be use in compare.
+            for ( int i =0; i<userList.size() ;i++)
             {
                 ReportModel userTemp = userList.get(i);
-                if (otherUsers!= null)
+
+                /// to check if the  others user list has value (note we are not fetching all the users ONLY the confirmed cases)
+                if (otherUsers.size() > 0)
                 {
+                    /// to create temporary user Location (from the other users fetched data) to be use in compare.
                     for (int x = 0; x<otherUsers.size();x++)
                     {
                         ReportModel othersTemp = otherUsers.get(x);
-                        if (userTemp.time - othersTemp.time <fechedSeco)
+
+                        /////////////////////////////////////////////////////////////////////////////////////
+                        ////   from here we start comparing  between the created temporary users data    ////
+                        /////////////////////////////////////////////////////////////////////////////////////
+
+                        //// first if the user TimedStamp is less then [ timeTOreport ] which is here 14 days
+                        if ((othersTemp.time - TimeStamp)< timeTOreport)
                         {
-                            if (distance(userTemp.latitude, userTemp.longitude, othersTemp.latitude, othersTemp.longitude)<disBpo) { cashConfirm++; }
+                            /// if the distance is less then [distanceTOothers] which is 20 meters
+                            if (distance(userTemp.latitude, userTemp.longitude, othersTemp.latitude, othersTemp.longitude)<distanceTOothers)
+                            {
+                                /// if the user and the confirmed user are in the [above if] which is the distance and the time is less than [] which is 15 mins.
+                                if (userTemp.time - othersTemp.time < timeINlocation &&
+                                        userTemp.time - othersTemp.time >  -timeINlocation)
+
+                                /// here we add 1 int to cashConfirm { which means current user has been in the Mix time in Mix distance with confirmed case}
+                                { cashConfirm++; }
+
+                            }
                         }
                     }
                 }
@@ -264,18 +293,61 @@ public class userActivity extends Activity  {
         Location userLocation = new Location("userLocation");
         userLocation.setLatitude(userLatitude);
         userLocation.setLongitude(userLongitude);
-        Location fechedLocation = new Location("fechedLocation");
-        fechedLocation.setLatitude(otherLatitude);
-        fechedLocation.setLongitude(otherLongitude);
+        Location fetchedLocation = new Location("fetchedLocation");
+        fetchedLocation.setLatitude(otherLatitude);
+        fetchedLocation.setLongitude(otherLongitude);
 
-        Distance = userLocation.distanceTo(fechedLocation);
+        Distance = userLocation.distanceTo(fetchedLocation);
         return Distance;
     }
 
 
+    /// to Max Distance to update the user location
+    public void maxUpdate (Location location)
+    {
+        /// if there is no location before
+        if(previousLocation == null)
+        {
+            previousLocation = location;
+            updateUserLocation();
+        }
+        else
+        {
+            /// 1< userLocation > 80
+            if (previousLocation.distanceTo(location)> MinDistance &&
+                previousLocation.distanceTo(location)< MaxDistance)
+            {
+                previousLocation = location;
+                updateUserLocation();
+            }
+            else
+            {
+                previousLocation = location;
+            }
+
+        }
+
+
+
+
+
+
+    }
+
+
+    /// update the user location
+    public void updateUserLocation()
+    {
+        long TimeStamp = System.currentTimeMillis()/1000 ;
+        ReportModel updateLocation = new ReportModel(TimeStamp,latitude,longitude);
+        String StringTimeStamp = TimeStamp +"";
+        refUserUpdateLocation.child(StringTimeStamp).setValue(updateLocation);
+    }
+
+    /// button to create view and call method [ fetchAndCheck] which gives the value of checked the user status.
     public void getStatus(View view)
     {
-        fechAndCheck();
+        fetchAndCheck();
         if(checkgranted(true))
         {
             int cashed = cashConfirm;
