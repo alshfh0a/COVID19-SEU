@@ -37,11 +37,10 @@ public class userSignupActivity extends Activity {
     /// the FireBase reference
     FirebaseDatabase DB;
     DatabaseReference refUser;
-    Query isExist;
 
     /// for user info
 
-    UserModel userInfo,user; String GovernmentID,Phone;
+    UserModel userInfo; String GovernmentID,Phone;
 
 
     @Override

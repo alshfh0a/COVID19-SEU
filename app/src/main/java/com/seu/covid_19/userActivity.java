@@ -49,7 +49,7 @@ public class userActivity extends Activity  {
     DatabaseReference refLocation,refUserUpdateLocation,userLocations;
     List<ReportModel> userList = new ArrayList<ReportModel>();
     List<ReportModel> otherUsers = new ArrayList<ReportModel>();
-    int cashConfirm ;
+    
 
 
     /// user info
@@ -241,7 +241,7 @@ public class userActivity extends Activity  {
 
     /// compare between info of the user and confirmed users
     public int fetchAndCheck()
-    {
+    {int cashConfirm = 0;
         long TimeStamp = System.currentTimeMillis()/1000 ;
         /// to check if the user list has value
         if (userList.size() > 0)
@@ -327,11 +327,6 @@ public class userActivity extends Activity  {
 
         }
 
-
-
-
-
-
     }
 
 
@@ -347,10 +342,10 @@ public class userActivity extends Activity  {
     /// button to create view and call method [ fetchAndCheck] which gives the value of checked the user status.
     public void getStatus(View view)
     {
-        fetchAndCheck();
+
         if(checkgranted(true))
         {
-            int cashed = cashConfirm;
+            int cashed = fetchAndCheck();
             if (cashed == noAlarm) {
                 status.setText("you are in No risk");
             }

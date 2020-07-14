@@ -11,6 +11,7 @@ public class menuActivity extends Activity {
     /// layout
     Button btnUser, btnAdmin;
 
+
     @Override
     protected void onCreate(Bundle savedInstanceState)
     {
@@ -42,7 +43,5 @@ public class menuActivity extends Activity {
             }
         });
 
-
     }
-
 }

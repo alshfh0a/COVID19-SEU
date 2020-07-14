@@ -2,8 +2,10 @@ package com.seu.covid_19;
 
 import android.app.AlertDialog;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.location.Location;
 import android.os.Bundle;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -11,7 +13,8 @@ import android.widget.ListView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.fragment.app.FragmentActivity;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
 
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.database.DataSnapshot;
@@ -24,14 +27,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 
-public class adminActivity extends FragmentActivity
+public class adminActivity extends AppCompatActivity
 {
     /// message and ID & Phone fixed digit
     public static final String IDwrong = "wrong ID";
     final int ID_DIGIT = 10;
 
     /// layout
-    Button btnSearch; EditText searchID;
+    Button btnSearch,exit; EditText searchID;
     AlertDialog alertDialog;
     ListView listView;
     AdapterAdapter adapter;
@@ -69,6 +72,7 @@ public class adminActivity extends FragmentActivity
         searchID = (EditText) findViewById(R.id.TxSearchID);
         listView = (ListView) findViewById(R.id.admin_listView);
 
+
         // Construct the data source
         arrayOfUsers = new ArrayList<UserModel>();
 
@@ -84,6 +88,25 @@ public class adminActivity extends FragmentActivity
 
 
     }
+
+    public void btnexit(View view){
+        AlertDialog.Builder builder = new AlertDialog.Builder(adminActivity.this);
+        builder.setTitle("are you sure ?");
+        builder.setPositiveButton("SURE", new DialogInterface.OnClickListener()
+        {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i)
+            {
+                Intent myIntent = new Intent(getApplicationContext(), menuActivity.class);
+                startActivity(myIntent);
+                finish();
+            }
+        });
+        alertDialog = builder.create();
+        alertDialog.show();
+
+    }
+
 
     /// here is the method to check the inserted info
     boolean dataInserted;

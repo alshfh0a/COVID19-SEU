@@ -69,6 +69,7 @@
             android:background="@color/colorPrimary"
             android:minWidth="0dp"
             android:minHeight="0dp"
+            android:onClick="AdminButton"
             android:paddingLeft="50dp"
             android:paddingTop="12dp"
             android:paddingRight="50dp"

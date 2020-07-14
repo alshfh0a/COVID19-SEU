@@ -8,55 +8,91 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
+
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
+
+import java.util.ArrayList;
+import java.util.List;
+
 
 public class adminSigninActivity extends Activity {
 
-    /// user and password for admin
-    public static final String adminUser = "admin";
-    public static final String adminPassword = "admin";
+    /// user and password for admin from Firebase
+    List<AdminModel> adminList = new ArrayList<AdminModel>();
 
 
     /// message and ID & Phone fixed digit
-    public static final String Userwrong = "wrong User";
-    public static final String PasswordWrong ="wrong Password";
+    public static final String Err = "User or Password wrong";
 
     /// for the layout
-    Button btnAdmin; EditText TxAdminUser, TxAdminPassword;
+    EditText TxAdminUser, TxAdminPassword;
 
-    //admin info
+    //admin info (inserted)
     String  AdminUser,AdminPassword;
+
+    /// the FireBase reference
+    FirebaseDatabase DB;
+    DatabaseReference refAdmin;
 
 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.admin_signup);
 
-
         /// view layout
-        btnAdmin = (Button) findViewById(R.id.btn_admin);
         TxAdminUser = (EditText) findViewById(R.id.TxAdminUser);
         TxAdminPassword = (EditText) findViewById(R.id.TxAdminPassword);
 
-
-        /// on click on SignUp button
-        btnAdmin.setOnClickListener(new View.OnClickListener() {
+        /// FireBase reference retriever
+        DB = FirebaseDatabase.getInstance();
+        refAdmin = DB.getReference("ADMIN");
+        refAdmin.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
-            public void onClick(View view) {
-                AdminUser = TxAdminUser.getText().toString();
-                AdminPassword = TxAdminPassword.getText().toString();
-
-                dataInserted = adminCheckUp(AdminUser, AdminPassword);
-
-                if (dataInserted)
+            public void onDataChange(@NonNull DataSnapshot snapshot)
+            {
+                if (snapshot.exists())
                 {
-                    /// to start (adminActivity)
-                    Intent myIntent = new Intent(getApplicationContext(), adminActivity.class);
-                    startActivity(myIntent);
-                    finish();
+                    for (DataSnapshot s : snapshot.getChildren())
+                    {
+                        /// we add each Snap data of the Firebase to [adminList]
+                        AdminModel adminTemp =s.getValue(AdminModel.class);
+                        adminList.add(adminTemp);
+                    }
                 }
-
             }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) { }
         });
+    }
+
+    /// on click on SignUp button
+    public void AdminButton(View view)
+    {
+        AdminUser = TxAdminUser.getText().toString();
+        AdminPassword = TxAdminPassword.getText().toString();
+        {
+            dataInserted = adminCheckUp(AdminUser, AdminPassword);
+
+            if (dataInserted)
+            {
+                /// to start (adminActivity)
+                Intent myIntent = new Intent(getApplicationContext(), adminActivity.class);
+                startActivity(myIntent);
+                finish();
+            }
+            if (!dataInserted)
+            {
+                Toast.makeText(this, Err, Toast.LENGTH_LONG).show();
+            }
+        }
+
+
     }
 
     /// here is the method to check the inserted info
@@ -64,26 +100,23 @@ public class adminSigninActivity extends Activity {
     public boolean adminCheckUp(String AdminUser,String AdminPassword) {
         boolean AdminUs = false;
         boolean AdminPas = false;
+        AdminModel adminTemp;
+        String adminUser = AdminUser.toLowerCase();
 
         /// check if bot User & Password are correct
-        if (!AdminUs || !AdminPas) /// both wrong
+        if (!AdminUs || !AdminPas)
         {
-            /// checkup the User
-            if (!AdminUs)
+            for (int i=0 ; i< adminList.size();i++)
             {
-                if (AdminUser.equals(adminUser)) { AdminUs = true; } /// ID correct
-                else { Toast.makeText(this, Userwrong, Toast.LENGTH_LONG).show(); } /// ID wrong
-            }
-
-            /// check up the Password
-            if (!AdminPas)
-            {
-                if (AdminPassword.equals(adminPassword)) { AdminPas = true; }  /// phone correct
-                else { Toast.makeText(this, PasswordWrong, Toast.LENGTH_LONG).show(); } /// Password wrong
+                adminTemp = adminList.get(i);
+                if (adminUser.equals(adminTemp.AdminUser))
+                { AdminUs = true; } /// ID correct
+                if (AdminPassword.equals(adminTemp.AdminPassword))
+                { AdminPas = true; } /// Password Correct
             }
         }
-        if (AdminUs && AdminPas) { dataInserted = true; } /// both correct
 
+        if (AdminUs && AdminPas) { dataInserted = true; } /// both correct
         return dataInserted;
     }
 }
